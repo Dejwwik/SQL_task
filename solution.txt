@@ -1,0 +1,55 @@
+Table ``domain`` representing fully qualified domain name registrations life time. 
+Besides domain name it holds timestamps when domain name was registered and unregistered (deleted). 
+Records of the given domain name cannot overlap in time (there can be only one record for given domain name which has not yet been marked as unregistered).
+----------------------------------------------------
+CREATE TABLE domain(
+    id BIGSERIAL PRIMARY KEY, 
+    domain_name VARCHAR(100) NOT NULL, 
+    registered_at TIMESTAMP NOT NULL, 
+    unregistered_at TIMESTAMP
+);
+CREATE UNIQUE INDEX unique_active ON domain(domain_name) WHERE unregistered_at IS NULL;
+----------------------------------------------------
+
+Table ``domain_flag`` should represent history of flags being enabled and disabled on domains during time. 
+For simplicity we can assume that individual flags are independent on each other and records for given domain can overlap in time. 
+Each flag can be valid for some period of time. It always starts at specific time but the upper limit can be unbounded which means that it is valid indefinitely. 
+We never change already inserted records with one exception: if upper limit is unbounded, it can be set to specific point in time but never to the past (at the time the change is made).
+
+----------------------------------------------------
+CREATE TABLE domain_flag(
+    id BIGSERIAL PRIMARY KEY, 
+    domain_id BIGINT NOT NULL REFERENCES domain(id),
+    flag_name VARCHAR(20) NOT NULL, 
+    valid_from TIMESTAMP NOT NULL, 
+    valid_until TIMESTAMP
+);
+
+ALTER TABLE domain_flag ADD CONSTRAINT valid_flag CHECK (flag_name IN ('EXPIRED','OUTZONE','DELETE_CANDIDATE'));
+ALTER TABLE domain_flag ADD CONSTRAINT valid_period CHECK ((valid_until IS NULL) OR (valid_until > NOW()));
+----------------------------------------------------
+
+NOW INSERT SOME DATA:
+
+Write a ``SELECT`` query which will return fully qualified domain name of domains which are currently (at the time query is run) registered and do not have and active (valid) expiration (``EXPIRED``) flag.
+----------------------------------------------------
+SELECT domain_name FROM domain
+LEFT JOIN domain_flag ON domain.id = domain_flag.domain_id 
+WHERE domain.unregistered_at IS NULL  
+    AND NOT ((domain_flag.flag_name = 'EXPIRED' AND domain_flag.valid_until > NOW()) OR (domain_flag.flag_name = 'EXPIRED' AND domain_flag.valid_until IS NULL));
+----------------------------------------------------
+
+-- criteria to fitler. unregistered_at must be NULL
+-- expired cannot be active, means if the flag is expired, then check if it is valid. Also if it is valid_from but no end. This exclude too
+
+
+Write a ``SELECT`` query which will return fully qualified domain name of domains which have had active (valid) ``EXPIRED`` and ``OUTZONE`` flags 
+(means both flags and not necessarily at the same time) in the past (relative to the query run time).
+
+----------------------------------------------------
+SELECT domain_name FROM domain
+LEFT JOIN domain_flag ON domain.id = domain_flag.domain_id 
+WHERE 
+    (domain_flag.flag_name = 'EXPIRED' AND domain_flag.valid_until < NOW()) OR (domain_flag.flag_name = 'OUTZONE' AND domain_flag.valid_until < NOW());
+----------------------------------------------------
+
