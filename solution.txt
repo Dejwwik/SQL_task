@@ -53,3 +53,17 @@ WHERE
     (domain_flag.flag_name = 'EXPIRED' AND domain_flag.valid_until < NOW()) OR (domain_flag.flag_name = 'OUTZONE' AND domain_flag.valid_until < NOW());
 ----------------------------------------------------
 
+Table domain_flag should represent history of flags being enabled and disabled on domains during time. For simplicity we can assume that individual flags are independent on each other and records for given domain can overlap in time. Each flag can be valid for some period of time. It always starts at specific time but the upper limit can be unbounded which means that it is valid indefinitely. We never change already inserted records with one exception: if upper limit is unbounded, it can be set to specific point in time but never to the past (at the time the change is made).
+
+Implement as much as you can and if you think that some part of the task cannot be implemented explain it in your solution.
+----------------------------------------------------
+There is not possible, to change inserted records. We can always use UPDATE TABLE and set values. But we can validate that values to be correct.
+As I did, i am checking, that the valid_until is NULL or it is greater than NOW() -> cannot insert valid_until to history from NOW().
+----------------------------------------------------
+
+Propose (not necessarily implement) other possible constraints and enhancements which could be created and not have been explicitly mentioned in the task description.
+----------------------------------------------------
+One of constraints what i would like to add, is about validating the correctness of domain name. Domain name should not have harmful meaning, but this feature
+should be primarily implementing in backend processing even before saving into DB.
+Then also we can create a constraint, which will validate, that one domain has only one flag_name. Now we can have multiple same flag_name to one domain.
+----------------------------------------------------
